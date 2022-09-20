@@ -1,6 +1,5 @@
-��#� �s�s�k�t�
-�
-�install
+## SSKT
+## install
 npm install
-start
- npm run start 
+## start
+npm run start 
