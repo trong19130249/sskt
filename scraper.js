@@ -1,72 +1,27 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
 const https = require("https");
-const express = require("express");
 var moment = require("moment");
+const { createConnection } = require("mysql");
+const { v4: uuidv4 } = require("uuid");
+const pool = createConnection({
+    host: "localhost",
+    user: "root",
+    password: "",
+    database: "xskt",
+    connectionLimit: 10,
+});
 var fs = require("fs");
-const PORT = 1234;
-const app = express();
-axios.defaults.httpsAgent = new https.Agent({
-    rejectUnauthorized: false,
-});
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
-app.get("/", function (req, res) {
-    return res.send("Hello World!");
-});
-app.get("/xoso/:ngay", function (req, res) {
-    let ngayXo = req.params.ngay;
-    if (ngayXo == "homnay") {
-        ngayXo = moment().format("DD-MM-YYYY");
-    }
-    url = `https://xskt.com.vn/xsmn/ngay-${ngayXo}`;
-    axios
-        .get(url)
-        .then(function (response) {
-            // console.log(response.data);
-            const $ = cheerio.load(response.data);
-            const results = [];
-            $("#MN0 > tbody > tr").each(function (i, element) {
-                if (i == 0) {
-                    $(this)
-                        .find("th")
-                        .each(function (i) {
-                            if (i != 0) {
-                                results[i - 1] = { tinh: $(this).text() };
-                            }
-                        });
-                } else {
-                    let atr;
-                    $(this)
-                        .find("td")
-                        .each(function (i) {
-                            if (i == 0) {
-                                atr = $(this).html();
-                            }
-                            if (i != 0) {
-                                results[i - 1][i - 1] = $(this).html();
-                            }
-                            // console.log($(this).html());
-                        });
-                }
-            });
-            // console.log(results);
-            return results;
-        })
-        .catch(function (err) {
-            console.log(err);
-        });
-    return res.send(url);
-});
+
+const CONTACT_NAME = "Ngô Tấn Trọng";
 async function scraperXsmt(ngayXo) {
     if (ngayXo == "homnay") {
         ngayXo = moment().format("DD-MM-YYYY");
     }
-    let mien = "Miền trung";
+    let region = "Miền trung";
     url = `https://xskt.com.vn/xsmt/ngay-${ngayXo}`;
 
-    const demo = await axios
+    const data = await axios
         .get(url)
         .then(function (response) {
             const resultsTemp = [];
@@ -75,7 +30,7 @@ async function scraperXsmt(ngayXo) {
             const $ = cheerio.load(response.data);
             let data = $(".box-table .tbl-xsmn").eq(0);
             if (!data.find("tr:first-child th a").html()) {
-                // console.log(mien + ngayXo);
+                // console.log(region + ngayXo);
                 return [];
             }
             let dayOfWeek = data.find("tr:first-child th a").html().trim();
@@ -91,7 +46,7 @@ async function scraperXsmt(ngayXo) {
                     code = code.replace(/<[^>]*>?/gm, " ").trim();
                     code.split(" ").forEach((str) => {
                         resultsTemp.push(
-                            mien +
+                            region +
                                 "," +
                                 dayOfWeek +
                                 "," +
@@ -111,17 +66,17 @@ async function scraperXsmt(ngayXo) {
         .catch(function (err) {
             console.log(err);
         });
-    return { region: "mientrung", data: demo };
+    return { region: "mientrung", data: data };
 }
 async function scraperXsmn(ngayXo) {
     if (ngayXo == "homnay") {
         ngayXo = moment().format("DD-MM-YYYY");
     }
     // console.log(ngayXo);
-    let mien = "Miền nam";
+    let region = "Miền nam";
     url = `https://xskt.com.vn/xsmn/ngay-${ngayXo}`;
 
-    const demo = await axios
+    const data = await axios
         .get(url)
         .then(function (response) {
             const resultsTemp = [];
@@ -130,7 +85,7 @@ async function scraperXsmn(ngayXo) {
             const $ = cheerio.load(response.data);
             let data = $(".box-table .tbl-xsmn").eq(0);
             if (!data.find("tr:first-child th a").html()) {
-                // console.log(mien + ngayXo);
+                // console.log(region + ngayXo);
 
                 return [];
             }
@@ -147,7 +102,7 @@ async function scraperXsmn(ngayXo) {
                     code = code.replace(/<[^>]*>?/gm, " ").trim();
                     code.split(" ").forEach((str) => {
                         resultsTemp.push(
-                            mien +
+                            region +
                                 "," +
                                 dayOfWeek +
                                 "," +
@@ -167,16 +122,16 @@ async function scraperXsmn(ngayXo) {
         .catch(function (err) {
             console.log(err);
         });
-    return { region: "miennam", data: demo };
+    return { region: "miennam", data: data };
 }
 async function scraperXsmb(ngayXo) {
     if (ngayXo == "homnay") {
         ngayXo = moment().format("DD-MM-YYYY");
     }
-    let mien = "Miền bắc";
+    let region = "Miền bắc";
     url = `https://xskt.com.vn/xsmb/ngay-${ngayXo}`;
 
-    const demo = await axios
+    const data = await axios
         .get(url)
         .then(function (response) {
             const resultsTemp = [];
@@ -187,7 +142,7 @@ async function scraperXsmb(ngayXo) {
             let dayOfWeek = data.find("tr:first-child th b a").eq(1).text();
             let dai = data.find("tr:first-child th b").html();
             if (!data.find("tr:first-child th b").html()) {
-                // console.log(mien + ngayXo);
+                // console.log(region + ngayXo);
                 return [];
             }
             dai = dai.replace(/.*\(/gm, "").replace(/\).*/gm, "");
@@ -206,7 +161,7 @@ async function scraperXsmb(ngayXo) {
 
                 code.split(" ").forEach((str) => {
                     resultsTemp.push(
-                        mien +
+                        region +
                             "," +
                             dayOfWeek +
                             "," +
@@ -226,11 +181,12 @@ async function scraperXsmb(ngayXo) {
         .catch(function (err) {
             console.log(err);
         });
-    return { region: "mienbac", data: demo };
+    return { region: "mienbac", data: data };
 }
 
-async function writeData(data, path) {
+async function writeData(data, path, file_name) {
     if (data.length == 0) {
+        insertLogFile(file_name, "1", "ERROR", CONTACT_NAME);
         return;
     }
     var logger = fs.createWriteStream(path, {
@@ -245,13 +201,13 @@ async function writeData(data, path) {
         logger.write(row + "\n");
     });
     logger.end(); // close string
-    // console.log(data);
+    insertLogFile(file_name, "1", "EXTRACT", CONTACT_NAME);
 }
 
-async function scraperFiveYear() {
+async function scraper() {
     for (
         var d = new Date("1/1/2020");
-        d <= new Date("12/31/2020");
+        d <= new Date("5/31/2020");
         d.setDate(d.getDate() + 1)
     ) {
         let date = moment(d).format("DD-MM-YYYY");
@@ -262,31 +218,44 @@ async function scraperFiveYear() {
         ]).then((result) => {
             // const combined1 = result[0].concat(result[1]).concat(result[2]);
             // console.log(combined1.length);
+            // writeData(
+            //     combined1,
+            //     "data/xskt_" + date + ".csv",
+            //     "xskt_" + date + ".csv"
+            // );
             result.forEach((item) => {
-                if (item.data.length > 0) {
+                if (item?.data?.length > 0) {
                     console.log(item.data.length);
 
                     writeData(
                         item.data,
-                        `./data/xskt_${item.region}_${date}.csv`
+                        `./data/xskt_${item.region}_${date}.csv`,
+                        `xskt_${item.region}_${date}.csv`
                     );
                 }
             });
         });
     }
-
-    console.log("done");
-}
-
-function writeHeading(path) {
-    var logger = fs.createWriteStream(path, {
-        encoding: "utf8",
-        flags: "a", // 'a' means appending (old data will be preserved)
-    });
-    headingArr = ["Miền", "Thứ", "Ngày", "Tỉnh", "Tên giải", "Mã giải"];
-    let row = headingArr.join(",");
-    logger.write("\ufeff" + row + "\n");
-    logger.end(); // close string
+    pool.end();
+    console.log("ok");
 }
 // writeHeading();
-scraperFiveYear();
+scraper();
+// pool.connect(function (err) {
+//     if (err) throw err;
+//     console.log("Connected!");
+//     pool.query("SELECT * FROM region", function (err, result, fields) {
+//         if (err) throw err;
+//         console.log(result);
+//     });
+// });
+function insertLogFile(filename, configId, status, contact) {
+    let sql =
+        "insert into log_file(id,file_name,time,contact,status,config_id) values (?,?,?,?,?,?)";
+    let dateTime = moment().format("YYYY-MM-DD HH:mm:ss");
+    let values = [uuidv4(), filename, dateTime, contact, status, configId];
+    pool.query(sql, values, function (err, result, fields) {
+        if (err) throw err;
+        console.log("insert done");
+    });
+}
